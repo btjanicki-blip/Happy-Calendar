@@ -98,13 +98,7 @@ npm run test:client
 npm run test:server
 ```
 
-## Distribution
-
-For non-technical users, the easiest option is to upload the packaged zip from `desktop-dist/` to a GitHub Release so users can download and unzip the app directly.
-
-Note: if the app is not code-signed and notarized, macOS may require users to right-click and choose **Open** the first time.
-
-## Roadmap Ideas
+## Future Plans
 
 - Universal macOS build for Apple Silicon and Intel
 - DMG installer
@@ -113,7 +107,3 @@ Note: if the app is not code-signed and notarized, macOS may require users to ri
 - Series editing for recurring tasks
 - Better stats and productivity insights
 - Optional cloud sync or account support
-
-## License
-
-Add your preferred license here.
