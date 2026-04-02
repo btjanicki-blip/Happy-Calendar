@@ -1,0 +1,24 @@
+.DS_Store
+.runtime/
+
+node_modules/
+client/node_modules/
+server/node_modules/
+
+client/dist/
+client/*.tsbuildinfo
+
+desktop-dist/
+
+Happy Calendar.app/
+Happy Calendar Launcher Backup.app/
+
+server/*.db
+server/*.db-journal
+server/*.sqlite
+server/*.sqlite3
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

@@ -1,0 +1,50 @@
+{
+  "name": "gamified-calendar",
+  "private": true,
+  "version": "1.0.0",
+  "main": "electron/main.js",
+  "productName": "Happy Calendar",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client",
+    "desktop": "npm run build && electron .",
+    "package:mac": "npm run build && electron-builder --mac dir zip",
+    "open:app": "./scripts/open-happy-calendar.sh",
+    "preview": "npm run preview --prefix client",
+    "test:client": "npm run test --prefix client",
+    "test:server": "npm run test --prefix server"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.happycalendar.local",
+    "productName": "Happy Calendar",
+    "directories": {
+      "buildResources": "build",
+      "output": "desktop-dist"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "client/dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dir",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    }
+  }
+}

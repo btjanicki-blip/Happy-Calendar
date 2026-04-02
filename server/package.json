@@ -1,0 +1,19 @@
+{
+  "name": "gamified-calendar-server",
+  "private": true,
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "test": "node tests/routes.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "node-mocks-http": "^1.15.0"
+  }
+}

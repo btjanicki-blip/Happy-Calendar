@@ -1,0 +1,39 @@
+const express = require("express");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+const routes = require("./routes");
+
+function createApp() {
+  const app = express();
+  const clientDistPath = path.join(__dirname, "..", "client", "dist");
+  const hasClientBuild = fs.existsSync(clientDistPath);
+
+  app.use(cors());
+  app.use(express.json());
+
+  app.get("/health", (_request, response) => {
+    response.json({ status: "ok" });
+  });
+
+  app.use(routes);
+
+  if (hasClientBuild) {
+    app.use(express.static(clientDistPath));
+
+    app.get("*", (request, response, next) => {
+      if (request.path.startsWith("/tasks") || request.path.startsWith("/stats")) {
+        next();
+        return;
+      }
+
+      response.sendFile(path.join(clientDistPath, "index.html"));
+    });
+  }
+
+  return app;
+}
+
+module.exports = {
+  createApp,
+};
