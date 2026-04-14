@@ -23,10 +23,11 @@ function formatDateKey(date) {
 
 async function resetDatabase() {
   await run(`DELETE FROM tasks`);
-  await run(`UPDATE user_stats SET weeklyGoal = 100 WHERE id = 1`);
+  await run(`DELETE FROM calendar_stats`);
+  await run(`INSERT INTO calendar_stats (calendarId, weeklyGoal) VALUES ('default', 100)`);
 }
 
-function sendRequest(method, url, body) {
+function sendRequest(method, url, body, calendarId = "default") {
   return new Promise((resolve, reject) => {
     const request = httpMocks.createRequest({
       method,
@@ -34,6 +35,7 @@ function sendRequest(method, url, body) {
       body,
       headers: {
         "content-type": "application/json",
+        "x-calendar-id": calendarId,
       },
     });
 
@@ -154,6 +156,29 @@ async function main() {
 
     const statsResponse = await sendRequest("GET", "/stats");
     assert.equal(statsResponse.body.weeklyGoal, 180);
+  });
+
+  await runTest("calendar ids isolate task and stats data", async () => {
+    await sendRequest(
+      "POST",
+      "/tasks",
+      {
+        title: "Private task",
+        date: "2026-04-01",
+        points: 10,
+      },
+      "calendar-a"
+    );
+
+    const otherCalendarTasks = await sendRequest("GET", "/tasks", undefined, "calendar-b");
+    assert.equal(otherCalendarTasks.body.length, 0);
+
+    await sendRequest("PUT", "/stats", { weeklyGoal: 250 }, "calendar-a");
+    const firstStats = await sendRequest("GET", "/stats", undefined, "calendar-a");
+    const secondStats = await sendRequest("GET", "/stats", undefined, "calendar-b");
+
+    assert.equal(firstStats.body.weeklyGoal, 250);
+    assert.equal(secondStats.body.weeklyGoal, 100);
   });
 
   await closeDatabase();

@@ -4,6 +4,16 @@ const fs = require("fs");
 const path = require("path");
 const routes = require("./routes");
 
+function getCalendarId(request) {
+  const headerValue = request.header("X-Calendar-Id");
+
+  if (typeof headerValue === "string" && headerValue.trim()) {
+    return headerValue.trim();
+  }
+
+  return "default";
+}
+
 function createApp() {
   const app = express();
   const clientDistPath = path.join(__dirname, "..", "client", "dist");
@@ -11,6 +21,10 @@ function createApp() {
 
   app.use(cors());
   app.use(express.json());
+  app.use((request, _response, next) => {
+    request.calendarId = getCalendarId(request);
+    next();
+  });
 
   app.get("/health", (_request, response) => {
     response.json({ status: "ok" });

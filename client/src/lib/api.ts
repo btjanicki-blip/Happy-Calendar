@@ -1,7 +1,32 @@
 const LOCAL_API_ORIGIN = "http://127.0.0.1:4000";
+const CALENDAR_ID_STORAGE_KEY = "happy-calendar-id";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/$/, "");
+}
+
+function createCalendarId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `calendar_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function getCalendarId() {
+  if (typeof window === "undefined") {
+    return "server-calendar";
+  }
+
+  const existingCalendarId = window.localStorage.getItem(CALENDAR_ID_STORAGE_KEY);
+
+  if (existingCalendarId) {
+    return existingCalendarId;
+  }
+
+  const calendarId = createCalendarId();
+  window.localStorage.setItem(CALENDAR_ID_STORAGE_KEY, calendarId);
+  return calendarId;
 }
 
 export function getApiBaseUrl() {
@@ -28,11 +53,13 @@ export function buildApiUrl(path: string) {
 }
 
 export async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  headers.set("Content-Type", "application/json");
+  headers.set("X-Calendar-Id", getCalendarId());
+
   const response = await fetch(buildApiUrl(path), {
-    headers: {
-      "Content-Type": "application/json",
-    },
     ...options,
+    headers,
   });
 
   if (!response.ok) {

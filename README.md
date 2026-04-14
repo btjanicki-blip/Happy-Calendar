@@ -16,6 +16,7 @@ It combines the clarity of a calendar with simple gamification features like str
 - Filter tasks by selected day, overdue, completed, or high-point
 - Build streaks, levels, and badges over time
 - Run in the browser as a shareable web app
+- Keep each browser's calendar private by default
 - Optionally package it as a standalone desktop app on macOS
 
 ## Tech Stack
@@ -108,6 +109,9 @@ Happy Calendar now works as a standard web app:
 - the Express server serves both the API and the frontend
 - the server reads `PORT` from your hosting platform
 - the database can live on a mounted persistent volume
+- each browser gets its own anonymous calendar id, so different people do not overwrite each other by default
+
+Note: this is privacy-by-browser, not full account sync. A person's calendar stays separate on their device/browser, but it will not automatically follow them to a second device unless sign-in is added later.
 
 ### Recommended host: Railway
 

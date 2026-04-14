@@ -132,6 +132,7 @@ async function initializeDatabase() {
 
   await ensureColumn("tasks", "recurrence", `TEXT NOT NULL DEFAULT 'none'`);
   await ensureColumn("tasks", "seriesId", `TEXT`);
+  await ensureColumn("tasks", "calendarId", `TEXT NOT NULL DEFAULT 'default'`);
 
   await run(`
     CREATE TABLE IF NOT EXISTS user_stats (
@@ -142,6 +143,22 @@ async function initializeDatabase() {
 
   await run(
     `INSERT OR IGNORE INTO user_stats (id, weeklyGoal) VALUES (1, 100)`
+  );
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS calendar_stats (
+      calendarId TEXT PRIMARY KEY,
+      weeklyGoal INTEGER NOT NULL DEFAULT 100
+    )
+  `);
+
+  await run(
+    `INSERT OR IGNORE INTO calendar_stats (calendarId, weeklyGoal)
+     SELECT 'default', weeklyGoal FROM user_stats WHERE id = 1`
+  );
+
+  await run(
+    `INSERT OR IGNORE INTO calendar_stats (calendarId, weeklyGoal) VALUES ('default', 100)`
   );
 }
 
