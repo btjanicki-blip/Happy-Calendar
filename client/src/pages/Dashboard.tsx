@@ -5,6 +5,7 @@ import TaskCard, { Task } from "../components/TaskCard";
 import TaskFilters, { TaskFilter } from "../components/TaskFilters";
 import TaskForm, { TaskFormValues } from "../components/TaskForm";
 import WeeklyProgress from "../components/WeeklyProgress";
+import { fetchJson } from "../lib/api";
 
 interface UserStats {
   weeklyGoal: number;
@@ -23,22 +24,6 @@ interface UserStats {
   }>;
 }
 
-function getApiUrl() {
-  if (typeof window === "undefined") {
-    return "http://127.0.0.1:4000";
-  }
-
-  if (window.location.port === "5173") {
-    return "http://127.0.0.1:4000";
-  }
-
-  if (window.location.hostname === "localhost" && window.location.port === "") {
-    return "http://127.0.0.1:4000";
-  }
-
-  return window.location.origin;
-}
-
 function getTodayDate() {
   const today = new Date();
   const year = today.getFullYear();
@@ -48,23 +33,7 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return response.json();
-}
-
 function Dashboard() {
-  const apiUrl = getApiUrl();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<UserStats>({
     weeklyGoal: 100,
@@ -89,8 +58,8 @@ function Dashboard() {
 
     try {
       const [taskList, statsSnapshot] = await Promise.all([
-        fetchJson<Task[]>(`${apiUrl}/tasks`),
-        fetchJson<UserStats>(`${apiUrl}/stats`),
+        fetchJson<Task[]>("/tasks"),
+        fetchJson<UserStats>("/stats"),
       ]);
 
       setTasks(taskList);
@@ -129,7 +98,7 @@ function Dashboard() {
   }, [activeFilter, selectedDate, tasks]);
 
   async function handleCreateTask(values: TaskFormValues) {
-    await fetchJson<Task>(`${apiUrl}/tasks`, {
+    await fetchJson<Task>("/tasks", {
       method: "POST",
       body: JSON.stringify(values),
     });
@@ -142,7 +111,7 @@ function Dashboard() {
       return;
     }
 
-    await fetchJson<Task>(`${apiUrl}/tasks/${editingTaskId}`, {
+    await fetchJson<Task>(`/tasks/${editingTaskId}`, {
       method: "PUT",
       body: JSON.stringify(values),
     });
@@ -159,8 +128,8 @@ function Dashboard() {
     }
 
     const endpoint = targetTask.completed
-      ? `${apiUrl}/tasks/${taskId}`
-      : `${apiUrl}/tasks/${taskId}/complete`;
+      ? `/tasks/${taskId}`
+      : `/tasks/${taskId}/complete`;
     const method = targetTask.completed ? "PUT" : "POST";
     const body = targetTask.completed
       ? JSON.stringify({ completed: false })
@@ -175,7 +144,7 @@ function Dashboard() {
   }
 
   async function handleDeleteTask(taskId: string) {
-    await fetchJson<{ success: boolean }>(`${apiUrl}/tasks/${taskId}`, {
+    await fetchJson<{ success: boolean }>(`/tasks/${taskId}`, {
       method: "DELETE",
     });
 
@@ -183,7 +152,7 @@ function Dashboard() {
   }
 
   async function handleSaveGoal(goal: number) {
-    const updatedStats = await fetchJson<UserStats>(`${apiUrl}/stats`, {
+    const updatedStats = await fetchJson<UserStats>("/stats", {
       method: "PUT",
       body: JSON.stringify({ weeklyGoal: goal }),
     });

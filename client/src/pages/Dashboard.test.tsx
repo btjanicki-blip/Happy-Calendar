@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl } from "../lib/api";
 import Dashboard from "./Dashboard";
 
 const statsResponse = {
@@ -107,7 +108,7 @@ describe("Dashboard", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/tasks/task-1"),
+        buildApiUrl("/tasks/task-1"),
         expect.objectContaining({
           method: "PUT",
         })
@@ -127,7 +128,7 @@ describe("Dashboard", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/stats"),
+        buildApiUrl("/stats"),
         expect.objectContaining({
           method: "PUT",
         })

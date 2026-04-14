@@ -6,8 +6,18 @@ let sqlInstancePromise = null;
 let databasePromise = null;
 let database = null;
 
+function getDefaultDatabasePath() {
+  const persistentDataPath = "/data";
+
+  if (fs.existsSync(persistentDataPath)) {
+    return path.join(persistentDataPath, "happy-calendar.db");
+  }
+
+  return path.join(__dirname, "happy-calendar.db");
+}
+
 function getDatabasePath() {
-  return process.env.HAPPY_CAL_DB_PATH || path.join(__dirname, "happy-calendar.db");
+  return process.env.HAPPY_CAL_DB_PATH || getDefaultDatabasePath();
 }
 
 function getSqlInstance() {

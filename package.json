@@ -6,9 +6,12 @@
   "productName": "Happy Calendar",
   "scripts": {
     "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "dev": "npm run dev:server",
     "dev:client": "npm run dev --prefix client",
     "dev:server": "npm run dev --prefix server",
     "build": "npm run build --prefix client",
+    "start": "npm run start --prefix server",
+    "start:web": "npm run build && npm start",
     "desktop": "npm run build && electron .",
     "package:mac": "npm run build && electron-builder --mac dir zip",
     "open:app": "./scripts/open-happy-calendar.sh",
