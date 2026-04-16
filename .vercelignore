@@ -1,0 +1,10 @@
+desktop-dist
+build
+electron
+Happy Calendar.app
+Happy Calendar Launcher Backup.app
+assets
+server/*.db
+server/*.db-journal
+server/*.sqlite
+server/*.sqlite3

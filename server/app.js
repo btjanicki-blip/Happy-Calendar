@@ -14,16 +14,20 @@ function getCalendarId(request) {
   return "default";
 }
 
-function createApp() {
+function createApp(options = {}) {
   const app = express();
   const clientDistPath = path.join(__dirname, "..", "client", "dist");
   const hasClientBuild = fs.existsSync(clientDistPath);
+  const beforeRoutes = options.beforeRoutes ?? [];
 
   app.use(cors());
   app.use(express.json());
   app.use((request, _response, next) => {
     request.calendarId = getCalendarId(request);
     next();
+  });
+  beforeRoutes.forEach((middleware) => {
+    app.use(middleware);
   });
 
   app.get("/health", (_request, response) => {

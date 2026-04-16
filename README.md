@@ -17,7 +17,6 @@ It combines the clarity of a calendar with simple gamification features like str
 - Build streaks, levels, and badges over time
 - Run in the browser as a shareable web app
 - Keep each browser's calendar private by default
-- Optionally package it as a standalone desktop app on macOS
 
 ## Tech Stack
 
@@ -95,12 +94,6 @@ This builds the frontend and serves the full app from Express on:
 http://127.0.0.1:4000
 ```
 
-### 5. Optional: run the desktop app
-
-```bash
-npm run desktop
-```
-
 ## Deploying So You Can Share a Link
 
 Happy Calendar now works as a standard web app:
@@ -112,6 +105,32 @@ Happy Calendar now works as a standard web app:
 - each browser gets its own anonymous calendar id, so different people do not overwrite each other by default
 
 Note: this is privacy-by-browser, not full account sync. A person's calendar stays separate on their device/browser, but it will not automatically follow them to a second device unless sign-in is added later.
+
+### Deploying on Vercel
+
+Vercel can host the app, but it should use an external database instead of the local `sql.js` file. Vercel's current docs say Express apps run as a Vercel Function, static assets must come from `public/**`, and durable app data should use external storage such as a Marketplace Postgres database rather than the local filesystem.
+
+This repo includes Vercel-specific setup:
+
+- `app.js` at the project root for Vercel's Express runtime
+- `vercel.json` with a Vercel build command and SPA rewrites
+- `.vercelignore` to exclude Electron and desktop artifacts
+- `npm run build:vercel` to build the frontend into `public/`
+- automatic Postgres mode when `DATABASE_URL` is set
+
+#### Vercel setup steps
+
+1. Import the GitHub repo into Vercel.
+2. Set the Root Directory to `gamified-calendar`.
+3. Add a Postgres integration from the Vercel Marketplace, or provide your own Postgres `DATABASE_URL`.
+4. Redeploy.
+
+#### Vercel environment variables
+
+- `DATABASE_URL`: required on Vercel for durable app data
+- `PGSSLMODE=disable`: only if you are connecting to a local or non-SSL Postgres instance
+
+Without `DATABASE_URL`, Happy Calendar falls back to the local `sql.js` database, which is fine for local development but not appropriate for Vercel deployments.
 
 ### Recommended host: Railway
 
@@ -156,20 +175,6 @@ Start:
 npm start
 ```
 
-## Building the Standalone macOS App
-
-To generate a packaged macOS app:
-
-```bash
-npm run package:mac
-```
-
-This produces output in:
-
-```text
-desktop-dist/
-```
-
 ## Testing
 
 ### Run frontend tests
@@ -188,13 +193,8 @@ npm run test:server
 
 For the easiest sharing experience, deploy the web app and send people the URL.
 
-If you still want a downloadable Mac app, you can also upload the packaged zip from `desktop-dist/` to a GitHub Release. If the app is not code-signed and notarized, macOS may require users to right-click and choose **Open** the first time.
-
 ## Future Plans
 
-- Universal macOS build for Apple Silicon and Intel
-- DMG installer
-- Code signing and notarization
 - Drag-and-drop task scheduling
 - Series editing for recurring tasks
 - Better stats and productivity insights
