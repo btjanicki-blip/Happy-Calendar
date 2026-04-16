@@ -1,8 +1,10 @@
+const express = require("express");
 const { createApp } = require("./server/app");
 const { initializeDatabase } = require("./server/database");
 
 let initializationPromise = null;
-module.exports = createApp({
+const app = express();
+const apiApp = createApp({
   beforeRoutes: [
     async (_request, _response, next) => {
       if (!initializationPromise) {
@@ -18,3 +20,7 @@ module.exports = createApp({
     },
   ],
 });
+
+app.use(apiApp);
+
+module.exports = app;
