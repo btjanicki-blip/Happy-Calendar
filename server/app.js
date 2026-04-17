@@ -49,6 +49,11 @@ function createApp(options = {}) {
     });
   }
 
+  app.use((error, _request, response, _next) => {
+    console.error(error);
+    response.status(500).json({ error: "Unable to process request." });
+  });
+
   return app;
 }
 

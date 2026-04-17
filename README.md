@@ -31,7 +31,7 @@ It combines the clarity of a calendar with simple gamification features like str
 - Express
 
 ### Data
-- Local SQLite-style storage using `sql.js`
+- MongoDB using `mongoose`
 
 ## Project Structure
 
@@ -62,7 +62,19 @@ cd gamified-calendar
 npm run install:all
 ```
 
-### 3. Run the web app locally
+### 3. Start MongoDB locally
+
+Happy Calendar now expects a Mongo connection string.
+
+Create a `.env` file in `gamified-calendar/` from `.env.example`, or export one directly:
+
+```bash
+export MONGO_SRV=mongodb://127.0.0.1:27017/happy-calendar
+```
+
+Then make sure MongoDB is running on your machine or update `MONGO_SRV` to your Atlas/local URI.
+
+### 4. Run the web app locally
 
 In one terminal:
 
@@ -101,14 +113,14 @@ Happy Calendar now works as a standard web app:
 - the React frontend builds into `client/dist`
 - the Express server serves both the API and the frontend
 - the server reads `PORT` from your hosting platform
-- the database can live on a mounted persistent volume
+- the database lives in MongoDB instead of local app storage
 - each browser gets its own anonymous calendar id, so different people do not overwrite each other by default
 
 Note: this is privacy-by-browser, not full account sync. A person's calendar stays separate on their device/browser, but it will not automatically follow them to a second device unless sign-in is added later.
 
 ### Deploying on Vercel
 
-Vercel can host the app, but it should use an external database instead of the local `sql.js` file. Vercel's current docs say Express apps run as a Vercel Function, static assets must come from `public/**`, and durable app data should use external storage such as a Marketplace Postgres database rather than the local filesystem.
+Vercel can host the app cleanly with MongoDB because the app no longer depends on local filesystem storage. The Express app is exposed from the project root for Vercel, static assets build into `public/`, and the API opens a cached Mongo connection per serverless instance.
 
 This repo includes Vercel-specific setup:
 
@@ -116,32 +128,31 @@ This repo includes Vercel-specific setup:
 - `vercel.json` with a Vercel build command and SPA rewrites
 - `.vercelignore` to exclude Electron and desktop artifacts
 - `npm run build:vercel` to build the frontend into `public/`
-- automatic Postgres mode when `DATABASE_URL` is set
+- automatic Mongo connection reuse through the shared server bootstrap
 
 #### Vercel setup steps
 
 1. Import the GitHub repo into Vercel.
 2. Set the Root Directory to `gamified-calendar`.
-3. Add a Postgres integration from the Vercel Marketplace, or provide your own Postgres `DATABASE_URL`.
+3. Add `MONGO_SRV` in Vercel Environment Variables. This should be your MongoDB Atlas connection string or another externally hosted Mongo URI.
 4. Redeploy.
 
 #### Vercel environment variables
 
-- `DATABASE_URL`: required on Vercel for durable app data
-- `PGSSLMODE=disable`: only if you are connecting to a local or non-SSL Postgres instance
+- `MONGO_SRV`: required on Vercel for durable app data
+- `MONGODB_URI`: optional alternate variable name if you prefer that convention
 
-Without `DATABASE_URL`, Happy Calendar falls back to the local `sql.js` database, which is fine for local development but not appropriate for Vercel deployments.
+For Vercel, MongoDB Atlas is the easiest fit because it is already remote and works well with serverless functions.
 
 ### Recommended host: Railway
 
-I recommend Railway for this project because it supports persistent volumes for services, which matters for an app storing its data in a local database file. Railway also documents monorepo deployment by setting a root directory for the service.
+Railway is still a good option, but with MongoDB it no longer needs a persistent volume for app data. You can point the app at Atlas or another Mongo deployment and keep the same app behavior across Railway and Vercel.
 
 This repo includes a [`railway.json`](./railway.json) file that sets:
 
 - build command: `npm run install:all && npm run build`
 - start command: `npm start`
 - health check: `/health`
-- required mount path: `/data`
 
 ### Railway setup steps
 
@@ -149,7 +160,7 @@ This repo includes a [`railway.json`](./railway.json) file that sets:
 2. In Railway, create a new project from that GitHub repo.
 3. Set the service root directory to `gamified-calendar`.
 4. If Railway does not automatically pick it up, set the config file path to `/gamified-calendar/railway.json`.
-5. Add a volume and mount it to `/data`.
+5. Add `MONGO_SRV` to the Railway service variables.
 6. Deploy.
 7. Open the generated Railway domain and share that URL.
 
@@ -157,7 +168,8 @@ This repo includes a [`railway.json`](./railway.json) file that sets:
 
 - `PORT`: supplied by the host
 - `HOST`: defaults to `0.0.0.0` for deployment
-- `HAPPY_CAL_DB_PATH`: overrides the database file path if you want something other than `/data/happy-calendar.db`
+- `MONGO_SRV`: MongoDB connection string used by the server
+- `MONGODB_URI`: alternate MongoDB connection string name
 - `VITE_API_URL`: only needed if the frontend and API live on different domains
 
 ### Generic deployment commands

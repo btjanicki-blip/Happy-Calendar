@@ -1,5 +1,5 @@
 const express = require("express");
-const { all, get, run } = require("./database");
+const { CalendarStats, Task } = require("./database");
 
 const router = express.Router();
 const RECURRENCE_RULES = ["none", "daily", "weekly", "monthly"];
@@ -73,22 +73,39 @@ function buildRecurringTasks({ title, date, points, recurrence }) {
     title,
     date: addRecurrence(date, recurrence, index),
     points,
-    completed: 0,
+    completed: false,
     recurrence,
     seriesId,
   }));
 }
 
+async function getWeeklyGoal(calendarId) {
+  const stats = await CalendarStats.findOne({ calendarId }).lean();
+  return stats?.weeklyGoal ?? 100;
+}
+
 async function calculateWeeklyPoints(calendarId) {
   const { start, end } = getWeekBounds();
-  const result = await get(
-    `SELECT COALESCE(SUM(points), 0) AS weeklyPoints
-     FROM tasks
-     WHERE calendarId = ? AND completed = 1 AND date BETWEEN ? AND ?`,
-    [calendarId, start, end]
-  );
+  const result = await Task.aggregate([
+    {
+      $match: {
+        calendarId,
+        completed: true,
+        date: {
+          $gte: start,
+          $lte: end,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: "$points" },
+      },
+    },
+  ]);
 
-  return result?.weeklyPoints ?? 0;
+  return result[0]?.total ?? 0;
 }
 
 function calculateStreaks(completedDates) {
@@ -175,15 +192,15 @@ function buildBadges({ weeklyPoints, totalCompletedTasks, currentStreak, bestStr
 }
 
 async function buildStatsResponse(calendarId) {
-  const [userStats, weeklyPoints, completedTasks] = await Promise.all([
-    get(`SELECT weeklyGoal FROM calendar_stats WHERE calendarId = ?`, [calendarId]),
+  const [weeklyGoal, weeklyPoints, completedTasks] = await Promise.all([
+    getWeeklyGoal(calendarId),
     calculateWeeklyPoints(calendarId),
-    all(
-      `SELECT date, points FROM tasks
-       WHERE calendarId = ? AND completed = 1
-       ORDER BY date ASC`,
-      [calendarId]
-    ),
+    Task.find({
+      calendarId,
+      completed: true,
+    })
+      .sort({ date: 1 })
+      .lean(),
   ]);
 
   const completedDates = completedTasks.map((task) => task.date);
@@ -201,7 +218,7 @@ async function buildStatsResponse(calendarId) {
   });
 
   return {
-    weeklyGoal: userStats?.weeklyGoal ?? 100,
+    weeklyGoal,
     weeklyPoints,
     currentStreak,
     bestStreak,
@@ -215,10 +232,14 @@ async function buildStatsResponse(calendarId) {
 
 function normalizeTask(task) {
   return {
-    ...task,
+    id: task.id,
+    title: task.title,
+    date: task.date,
+    points: task.points,
     completed: Boolean(task.completed),
     recurrence: task.recurrence ?? "none",
     seriesId: task.seriesId ?? null,
+    calendarId: task.calendarId,
   };
 }
 
@@ -238,15 +259,11 @@ function validateTaskPayload({ title, date, points, recurrence }, response) {
 
 router.get("/tasks", async (request, response) => {
   try {
-    const tasks = await all(
-      `SELECT * FROM tasks
-       WHERE calendarId = ?
-       ORDER BY date ASC, completed ASC`,
-      [request.calendarId]
-    );
-    const normalizedTasks = tasks.map(normalizeTask);
+    const tasks = await Task.find({ calendarId: request.calendarId })
+      .sort({ date: 1, completed: 1 })
+      .lean();
 
-    response.json(normalizedTasks);
+    response.json(tasks.map(normalizeTask));
   } catch (error) {
     response.status(500).json({ error: "Unable to fetch tasks." });
   }
@@ -270,26 +287,10 @@ router.post("/tasks", async (request, response) => {
       calendarId: request.calendarId,
     }));
 
-    for (const task of tasksToCreate) {
-      await run(
-        `INSERT INTO tasks (id, title, date, points, completed, recurrence, seriesId, calendarId)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          task.id,
-          task.title,
-          task.date,
-          task.points,
-          task.completed,
-          task.recurrence,
-          task.seriesId,
-          task.calendarId,
-        ]
-      );
-    }
+    await Task.insertMany(tasksToCreate, { ordered: true });
 
-    const firstTask = normalizeTask(tasksToCreate[0]);
     response.status(201).json({
-      ...firstTask,
+      ...normalizeTask(tasksToCreate[0]),
       createdCount: tasksToCreate.length,
     });
   } catch (error) {
@@ -302,9 +303,12 @@ router.put("/tasks/:id", async (request, response) => {
   const { title, date, points, completed, recurrence } = request.body;
 
   try {
-    const existingTask = await get(`SELECT * FROM tasks WHERE id = ?`, [id]);
+    const existingTask = await Task.findOne({
+      id,
+      calendarId: request.calendarId,
+    }).lean();
 
-    if (!existingTask || existingTask.calendarId !== request.calendarId) {
+    if (!existingTask) {
       response.status(404).json({ error: "Task not found." });
       return;
     }
@@ -329,32 +333,26 @@ router.put("/tasks/:id", async (request, response) => {
           ? existingTask.seriesId ?? createSeriesId()
           : recurrence === "none"
             ? null
-            : existingTask.seriesId,
-      completed:
-        typeof completed === "boolean"
-          ? Number(completed)
-          : existingTask.completed,
+            : existingTask.seriesId ?? null,
+      completed: typeof completed === "boolean" ? completed : Boolean(existingTask.completed),
     };
 
-    await run(
-      `UPDATE tasks
-       SET title = ?, date = ?, points = ?, recurrence = ?, seriesId = ?, completed = ?
-       WHERE id = ?`,
-      [
-        updatedTask.title,
-        updatedTask.date,
-        updatedTask.points,
-        updatedTask.recurrence,
-        updatedTask.seriesId,
-        updatedTask.completed,
+    await Task.updateOne(
+      {
         id,
-      ]
+        calendarId: request.calendarId,
+      },
+      {
+        $set: updatedTask,
+      }
     );
 
-    response.json(normalizeTask({
-      id,
-      ...updatedTask,
-    }));
+    response.json(
+      normalizeTask({
+        ...existingTask,
+        ...updatedTask,
+      })
+    );
   } catch (error) {
     response.status(500).json({ error: "Unable to update task." });
   }
@@ -362,12 +360,12 @@ router.put("/tasks/:id", async (request, response) => {
 
 router.delete("/tasks/:id", async (request, response) => {
   try {
-    const result = await run(
-      `DELETE FROM tasks WHERE id = ? AND calendarId = ?`,
-      [request.params.id, request.calendarId]
-    );
+    const result = await Task.deleteOne({
+      id: request.params.id,
+      calendarId: request.calendarId,
+    });
 
-    if (result.changes === 0) {
+    if (result.deletedCount === 0) {
       response.status(404).json({ error: "Task not found." });
       return;
     }
@@ -380,24 +378,30 @@ router.delete("/tasks/:id", async (request, response) => {
 
 router.post("/tasks/:id/complete", async (request, response) => {
   try {
-    const task = await get(`SELECT * FROM tasks WHERE id = ?`, [request.params.id]);
+    const task = await Task.findOneAndUpdate(
+      {
+        id: request.params.id,
+        calendarId: request.calendarId,
+      },
+      {
+        $set: {
+          completed: true,
+        },
+      },
+      {
+        new: true,
+        lean: true,
+      }
+    );
 
-    if (!task || task.calendarId !== request.calendarId) {
+    if (!task) {
       response.status(404).json({ error: "Task not found." });
       return;
     }
 
-    await run(`UPDATE tasks SET completed = 1 WHERE id = ? AND calendarId = ?`, [
-      request.params.id,
-      request.calendarId,
-    ]);
-
     response.json({
       success: true,
-      task: {
-        ...task,
-        completed: true,
-      },
+      task: normalizeTask(task),
     });
   } catch (error) {
     response.status(500).json({ error: "Unable to complete task." });
@@ -421,12 +425,12 @@ router.put("/stats", async (request, response) => {
   }
 
   try {
-    await run(
-      `INSERT INTO calendar_stats (calendarId, weeklyGoal)
-       VALUES (?, ?)
-       ON CONFLICT(calendarId) DO UPDATE SET weeklyGoal = excluded.weeklyGoal`,
-      [request.calendarId, weeklyGoal]
+    await CalendarStats.findOneAndUpdate(
+      { calendarId: request.calendarId },
+      { $set: { weeklyGoal } },
+      { upsert: true }
     );
+
     response.json(await buildStatsResponse(request.calendarId));
   } catch (error) {
     response.status(500).json({ error: "Unable to update stats." });
